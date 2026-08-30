@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ArrowLeft,
   BookOpenText,
@@ -26,6 +26,7 @@ export function PoemReader({ id }: { id: string }) {
   const [error, setError] = useState('');
   const [showPinyin, setShowPinyin] = useState(true);
   const [favorites, setFavorites] = useState<string[]>([]);
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => setFavorites(readFavorites()), []);
   useEffect(() => {
@@ -48,14 +49,7 @@ export function PoemReader({ id }: { id: string }) {
       })
       .finally(() => setLoading(false));
     return () => controller.abort();
-  }, [id]);
-
-  const firstSection = useMemo(() => {
-    if (detail?.translation) return 'translation';
-    if (detail?.annotations.length) return 'notes';
-    if (detail?.appreciation) return 'appreciation';
-    return 'source';
-  }, [detail]);
+  }, [id, retry]);
 
   if (loading) {
     return (
@@ -76,9 +70,15 @@ export function PoemReader({ id }: { id: string }) {
         <div className="reader-status">
           <BookOpenText />
           <h1>{error || '没有找到这首诗'}</h1>
-          <Button asChild variant="outline">
-            <Link href="/#library">回到诗词宝库</Link>
-          </Button>
+          <p>可以重新展开一次，或回到诗林换一首。</p>
+          <div className="reader-status-actions">
+            <Button variant="outline" onClick={() => setRetry((n) => n + 1)}>
+              再试一次
+            </Button>
+            <Link className="reader-status-link" href="/#library">
+              回到诗词宝库
+            </Link>
+          </div>
         </div>
       </main>
     );
@@ -132,14 +132,18 @@ export function PoemReader({ id }: { id: string }) {
           >
             <div className="page-label">原文</div>
             <div className="reader-poem-body">
-              {detail.lines.map((line, index) => (
-                <PinyinLine
-                  key={`${index}-${line}`}
-                  line={line}
-                  pinyin={detail.pinyin[index]}
-                  visible={showPinyin}
-                />
-              ))}
+              {detail.lines.length > 0 ? (
+                detail.lines.map((line, index) => (
+                  <PinyinLine
+                    key={`${index}-${line}`}
+                    line={line}
+                    pinyin={detail.pinyin[index]}
+                    visible={showPinyin}
+                  />
+                ))
+              ) : (
+                <EmptyLearning text="这首作品的正文还在整理，请稍后再来。" />
+              )}
             </div>
             <p className="reading-hint">
               {showPinyin
@@ -150,26 +154,21 @@ export function PoemReader({ id }: { id: string }) {
 
           <section className="reader-learning-page">
             <div className="page-label">读懂这首诗</div>
-            <Tabs defaultValue={firstSection} className="reader-tabs">
+            <Tabs defaultValue="translation" className="reader-tabs">
               <TabsList>
-                {detail.translation && (
-                  <TabsTrigger value="translation">白话译文</TabsTrigger>
-                )}
-                {detail.annotations.length > 0 && (
-                  <TabsTrigger value="notes">词语注释</TabsTrigger>
-                )}
-                {detail.appreciation && (
-                  <TabsTrigger value="appreciation">读诗小赏</TabsTrigger>
-                )}
-                <TabsTrigger value="source">来源说明</TabsTrigger>
+                <TabsTrigger value="translation">白话译文</TabsTrigger>
+                <TabsTrigger value="notes">词语注释</TabsTrigger>
+                <TabsTrigger value="appreciation">读诗小赏</TabsTrigger>
               </TabsList>
-              {detail.translation && (
-                <TabsContent value="translation">
+              <TabsContent value="translation">
+                {detail.translation ? (
                   <ReadableText text={detail.translation} />
-                </TabsContent>
-              )}
-              {detail.annotations.length > 0 && (
-                <TabsContent value="notes">
+                ) : (
+                  <EmptyLearning text="这首作品的白话译文还在整理，先听听原文的声音吧。" />
+                )}
+              </TabsContent>
+              <TabsContent value="notes">
+                {detail.annotations.length > 0 ? (
                   <ul className="note-list">
                     {detail.annotations.map((note, index) => (
                       <li key={`${index}-${note}`}>
@@ -178,34 +177,18 @@ export function PoemReader({ id }: { id: string }) {
                       </li>
                     ))}
                   </ul>
-                </TabsContent>
-              )}
-              {detail.appreciation && (
-                <TabsContent value="appreciation">
+                ) : (
+                  <EmptyLearning text="这首作品暂时没有词语注释，遇到生字可以先看拼音。" />
+                )}
+              </TabsContent>
+              <TabsContent value="appreciation">
+                {detail.appreciation ? (
                   <ReadableText text={detail.appreciation} />
-                </TabsContent>
-              )}
-              <TabsContent value="source">
-                <div className="source-panel">
-                  <strong>数据版本可追溯</strong>
-                  <p>
-                    数据来自 {detail.source.name}，固定提交{' '}
-                    {detail.source.commit.slice(0, 8)}。
-                  </p>
-                  <p>{detail.source.licenseNote}</p>
-                  <a href={detail.source.url} target="_blank" rel="noreferrer">
-                    查看数据源
-                  </a>
-                </div>
+                ) : (
+                  <EmptyLearning text="这首作品的赏读还没有写好，先说说你读见了怎样的画面。" />
+                )}
               </TabsContent>
             </Tabs>
-            {!detail.translation &&
-              detail.annotations.length === 0 &&
-              !detail.appreciation && (
-                <p className="learning-empty">
-                  这首作品目前只有原文与拼音，译文和注释仍待整理。
-                </p>
-              )}
           </section>
         </div>
       </article>
@@ -219,9 +202,9 @@ function ReaderTop() {
       <Link className="reader-back" href="/#library">
         <ArrowLeft /> 返回诗词宝库
       </Link>
-      <Link className="brand" href="/" aria-label="童诗小书房首页">
+      <Link className="brand" href="/" aria-label="诗里小山河首页">
         <span className="brand-seal">诗</span>
-        <span>童诗小书房</span>
+        <span>诗里小山河</span>
       </Link>
       <span className="reader-top-note">一页一诗，慢慢读</span>
     </header>
@@ -237,6 +220,15 @@ function ReadableText({ text }: { text: string }) {
         .map((paragraph, index) => (
           <p key={`${index}-${paragraph}`}>{paragraph}</p>
         ))}
+    </div>
+  );
+}
+
+function EmptyLearning({ text }: { text: string }) {
+  return (
+    <div className="learning-empty">
+      <BookOpenText aria-hidden="true" />
+      <p>{text}</p>
     </div>
   );
 }

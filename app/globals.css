@@ -323,6 +323,9 @@ button {
 .today-card small svg {
   width: 14px;
 }
+.today-card.today-loading {
+  cursor: wait;
+}
 
 .collection-strip {
   width: min(1120px, calc(100% - 40px));
@@ -365,7 +368,7 @@ button {
 }
 
 .content-section {
-  width: min(1360px, calc(100% - 40px));
+  width: min(1880px, calc(100% - 40px));
   margin: 56px auto 0;
   scroll-margin-top: 18px;
 }
@@ -391,6 +394,7 @@ button {
   font-size: 13px;
 }
 .filter-panel {
+  overflow: clip;
   margin-bottom: 22px;
   padding: 17px;
   border: 1px solid #ecd9c6;
@@ -437,6 +441,9 @@ button {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 9px;
+}
+.filters-grid > * {
+  min-width: 0;
 }
 .filters-grid input,
 .filters-grid [data-slot='native-select'] {
@@ -492,7 +499,7 @@ button {
 }
 .poem-list {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 390px), 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 1px;
   overflow: hidden;
   border: 1px solid #e8d3bd;
@@ -561,30 +568,51 @@ button {
 .row-meta .dynasty-mark::after {
   display: none;
 }
-.row-title {
+.row-main {
   min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  margin-top: 7px;
+  display: block;
   color: #593927;
   text-decoration: none;
 }
-.row-title h3 {
+.row-main h3 {
   min-width: 0;
-  margin: 0;
+  margin: 7px 0 0;
   overflow: hidden;
   font: 800 21px/1.25 var(--font-serif-cn);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.row-content > p {
+.row-main > p {
   margin: 7px 0 0;
   overflow: hidden;
   color: #755643;
   font: 500 14px/1.55 var(--font-serif-cn);
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+@media (min-width: 1900px) {
+  .poem-list {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1199px) {
+  .poem-list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 899px) {
+  .poem-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 620px) {
+  .poem-list {
+    grid-template-columns: 1fr;
+  }
 }
 .row-foot {
   min-height: 25px;
@@ -633,19 +661,20 @@ button {
   fill: currentColor;
 }
 .load-more {
+  min-height: 42px;
   display: grid;
   place-items: center;
   margin: 26px 0 10px;
 }
-.load-more button {
-  min-width: 150px;
-  border-color: #e0c5aa;
-  border-radius: 999px;
-  color: #875039;
-  background: #fffaf2;
-}
 .load-more svg {
   width: 17px;
+}
+.load-more > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #94745e;
+  font-size: 12px;
 }
 .status-card {
   min-height: 220px;
@@ -870,14 +899,6 @@ button {
   margin-top: 6px;
   color: #b85a3d;
 }
-.source-note {
-  margin: 14px 34px 26px;
-  padding-top: 13px;
-  border-top: 1px solid #ead8c6;
-  color: #a28774;
-  font-size: 10px;
-  line-height: 1.6;
-}
 .detail-loading {
   min-height: 380px;
   display: grid;
@@ -1046,16 +1067,20 @@ button {
   padding-top: 34px;
 }
 .reader-poem-line {
+  width: 100%;
   display: grid;
   justify-items: center;
   gap: 17px;
 }
 .reader-poem-clause {
-  display: inline-flex;
+  max-width: 100%;
+  display: flex;
+  flex-wrap: wrap;
   justify-content: center;
-  white-space: nowrap;
+  white-space: normal;
 }
 .reader-poem-line ruby {
+  flex: none;
   display: inline-block;
   color: #4f3627;
   font: 650 clamp(18px, 2.2vw, 25px)/1.85 var(--font-serif-cn);
@@ -1069,6 +1094,10 @@ button {
 .reader-poem-line.section-line ruby {
   color: #aa765a;
   font-size: 14px;
+}
+.pinyin-pending {
+  color: #aa765a;
+  font: 500 10px var(--font-sans-cn);
 }
 .reading-hint {
   margin: 14px 0 0;
@@ -1113,34 +1142,25 @@ button {
   color: #624735;
   line-height: 1.9;
 }
-.source-panel {
-  padding: 17px;
-  border: 1px solid #ebd8c5;
-  border-radius: 14px;
-  background: rgba(255, 253, 248, 0.78);
-}
-.source-panel strong {
-  color: #6f4934;
-}
-.source-panel p {
-  margin: 8px 0 0;
-  color: #846753;
-  font-size: 12px;
-}
-.source-panel a {
-  display: inline-block;
-  margin-top: 12px;
-  color: #a64e35;
-  font-size: 12px;
-}
 .learning-empty {
   margin: 18px 0 0;
+  display: grid;
+  justify-items: center;
+  gap: 8px;
   padding: 16px;
   border: 1px dashed #dfc5aa;
   border-radius: 13px;
   color: #8d6e59;
   background: #fffdf8;
   line-height: 1.7;
+  text-align: center;
+}
+.learning-empty svg {
+  width: 24px;
+  color: #b55a3e;
+}
+.learning-empty p {
+  margin: 0;
 }
 .reader-status {
   width: min(760px, calc(100% - 32px));
@@ -1162,6 +1182,23 @@ button {
 .reader-status h1,
 .reader-status p {
   margin: 0;
+}
+.reader-status-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+.reader-status-link {
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid #dfc7b0;
+  border-radius: 10px;
+  padding: 0 14px;
+  color: #76513d;
+  background: #fffaf3;
+  text-decoration: none;
 }
 
 @media (max-width: 980px) {
@@ -1289,12 +1326,8 @@ button {
     display: none;
   }
   .collection-strip div {
-    position: sticky;
-    left: 0;
-    z-index: 2;
     flex: none;
     padding-right: 8px;
-    background: #f3e3d1;
   }
   .collection-strip button {
     flex: none;
@@ -1367,9 +1400,6 @@ button {
   }
   .detail-tabs [data-slot='tabs-trigger'] {
     font-size: 12px;
-  }
-  .source-note {
-    margin: 12px 20px 22px;
   }
   .reader-topbar,
   .reader-book {

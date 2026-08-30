@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   BookHeart,
   BookOpenText,
@@ -64,47 +64,10 @@ const collectionNames: Record<string, string> = {
   'first-poems': '初识古诗',
 };
 
-const fallbackFeatured: PoemListItem[] = [
-  {
-    id: 'preview-jingyesi',
-    title: '静夜思',
-    author: '李白',
-    dynasty: '唐',
-    kind: 'poem',
-    form: '五言绝句',
-    excerpt: '床前明月光，疑是地上霜。',
-    themes: ['月夜', '思乡'],
-    collections: ['widely-known'],
-    ageMin: 6,
-    ageMax: 9,
-    hasPinyin: true,
-    hasTranslation: true,
-    hasAnnotations: true,
-    popularScore: 100,
-  },
-  {
-    id: 'preview-dengguanquelou',
-    title: '登鹳雀楼',
-    author: '王之涣',
-    dynasty: '唐',
-    kind: 'poem',
-    form: '五言绝句',
-    excerpt: '白日依山尽，黄河入海流。',
-    themes: ['山水'],
-    collections: ['widely-known'],
-    ageMin: 6,
-    ageMax: 9,
-    hasPinyin: true,
-    hasTranslation: true,
-    hasAnnotations: true,
-    popularScore: 99,
-  },
-];
-
 function makeParams(filters: SearchFilters, page = 1) {
   const params = new URLSearchParams({
     page: String(page),
-    pageSize: '20',
+    pageSize: '24',
   });
   Object.entries(filters).forEach(
     ([key, value]) => value && params.set(key, value),
@@ -119,32 +82,35 @@ export default function Home() {
   const [authorDraft, setAuthorDraft] = useState('');
   const [filters, setFilters] = useState<SearchFilters>(emptyFilters);
   const [facets, setFacets] = useState<Facets>({});
-  const [featured, setFeatured] = useState<PoemListItem[]>(fallbackFeatured);
-  const [items, setItems] = useState<PoemListItem[]>(fallbackFeatured);
+  const [featured, setFeatured] = useState<PoemListItem[]>([]);
+  const [items, setItems] = useState<PoemListItem[]>([]);
   const [catalogCount, setCatalogCount] = useState(531001);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [randomLoading, setRandomLoading] = useState(false);
+  const [randomError, setRandomError] = useState('');
   const [favorites, setFavorites] = useState<string[]>([]);
+  const requestSequence = useRef(0);
+  const loadingRequest = useRef(false);
+  const loadMoreSentinel = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     setFavorites(readFavorites());
     const controller = new AbortController();
-    Promise.all([
-      getJSON<Facets>('/facets', controller.signal),
-      getJSON<{ items: PoemListItem[] }>(
-        '/featured?collection=widely-known&limit=6',
-        controller.signal,
-      ),
-      getJSON<{ count: number }>('/meta', controller.signal),
-    ])
-      .then(([facetData, featuredData, meta]) => {
-        setFacets(facetData);
-        if (featuredData.items.length) setFeatured(featuredData.items);
-        setCatalogCount(meta.count);
-      })
+    void getJSON<Facets>('/facets', controller.signal)
+      .then(setFacets)
+      .catch(() => undefined);
+    void getJSON<{ items: PoemListItem[] }>(
+      '/featured?collection=widely-known&limit=1&random=true',
+      controller.signal,
+    )
+      .then((data) => setFeatured(data.items))
+      .catch(() => undefined);
+    void getJSON<{ count: number }>('/meta', controller.signal)
+      .then((meta) => setCatalogCount(meta.count))
       .catch(() => undefined);
     return () => controller.abort();
   }, []);
@@ -162,14 +128,23 @@ export default function Home() {
 
   const loadPoems = useCallback(
     async (nextPage: number, append = false, signal?: AbortSignal) => {
+      const sequence = ++requestSequence.current;
+      loadingRequest.current = true;
       setLoading(true);
       setError('');
+      if (!append) {
+        setItems([]);
+        setTotal(0);
+        setPage(1);
+        setHasMore(false);
+      }
       try {
         const data = await getJSON<{
           items: PoemListItem[];
           total: number;
           hasMore: boolean;
         }>(`/poems?${makeParams(filters, nextPage)}`, signal);
+        if (sequence !== requestSequence.current) return;
         setItems((current) =>
           append ? [...current, ...data.items] : data.items,
         );
@@ -177,12 +152,18 @@ export default function Home() {
         setHasMore(data.hasMore);
         setPage(nextPage);
       } catch (reason) {
-        if ((reason as Error).name !== 'AbortError') {
+        if (
+          sequence === requestSequence.current &&
+          (reason as Error).name !== 'AbortError'
+        ) {
           setError('诗词书库暂时没有打开，请稍后再试。');
           if (!append) setItems([]);
         }
       } finally {
-        setLoading(false);
+        if (sequence === requestSequence.current) {
+          loadingRequest.current = false;
+          setLoading(false);
+        }
       }
     },
     [filters],
@@ -193,6 +174,22 @@ export default function Home() {
     void loadPoems(1, false, controller.signal);
     return () => controller.abort();
   }, [loadPoems]);
+
+  useEffect(() => {
+    const target = loadMoreSentinel.current;
+    if (!target || !hasMore || loading || loadingRequest.current || error)
+      return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting || loadingRequest.current) return;
+        observer.disconnect();
+        void loadPoems(page + 1, true);
+      },
+      { rootMargin: '480px 0px' },
+    );
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [error, hasMore, loadPoems, loading, page]);
 
   const setFilter = (key: keyof SearchFilters, value: string) => {
     setFilters((current) => ({ ...current, [key]: value }));
@@ -223,24 +220,37 @@ export default function Home() {
     setAuthorDraft('');
   };
 
-  const readAtRandom = () => {
-    if (!items.length) return;
-    const poem = items[Math.floor(Math.random() * items.length)];
-    router.push(`/poems/${poem.id}`);
+  const readAtRandom = async () => {
+    if (randomLoading) return;
+    setRandomLoading(true);
+    setRandomError('');
+    try {
+      const data = await getJSON<{ items: PoemListItem[] }>(
+        '/featured?collection=widely-known&limit=1&random=true',
+      );
+      const poem = data.items[0];
+      if (!poem) throw new Error('没有可读作品');
+      await getJSON(`/poems/${encodeURIComponent(poem.id)}`);
+      router.push(`/poems/${poem.id}`);
+    } catch {
+      setRandomError('这次风没有翻开书页，再点一次试试。');
+    } finally {
+      setRandomLoading(false);
+    }
   };
 
   const activeCount = useMemo(
     () => Object.values(filters).filter(Boolean).length,
     [filters],
   );
-  const today = featured[0] || fallbackFeatured[0];
+  const today = featured[0];
 
   return (
     <main className="min-h-screen overflow-x-hidden bg-background text-foreground">
       <header className="site-header">
-        <Link className="brand" href="/" aria-label="童诗小书房首页">
+        <Link className="brand" href="/" aria-label="诗里小山河首页">
           <span className="brand-seal">诗</span>
-          <span>童诗小书房</span>
+          <span>诗里小山河</span>
         </Link>
         <nav className="main-nav" aria-label="主导航">
           <a className="active" href="#discover">
@@ -301,13 +311,20 @@ export default function Home() {
             unoptimized
             alt="暖色绘本风山水中，一个孩子在桥边读诗"
           />
-          <Link className="today-card" href={`/poems/${today.id}`}>
-            <span>今日一诗</span>
-            <strong>《{today.title}》</strong>
-            <small>
-              {today.author} · 一起去看诗里的山河 <ChevronRight />
-            </small>
-          </Link>
+          {today ? (
+            <Link className="today-card" href={`/poems/${today.id}`}>
+              <span>今日一诗</span>
+              <strong>《{today.title}》</strong>
+              <small>
+                {today.author} · 一起去看诗里的山河 <ChevronRight />
+              </small>
+            </Link>
+          ) : (
+            <div className="today-card today-loading" aria-busy="true">
+              <span>今日一诗</span>
+              <strong>正从名篇里抽一首……</strong>
+            </div>
+          )}
         </div>
       </section>
 
@@ -324,6 +341,7 @@ export default function Home() {
           ['widely-known', '流传最广'],
           ['primary-school', '小学精选'],
           ['classic-anthology', '经典选本'],
+          ['first-poems', '初识古诗'],
         ].map(([value, label]) => (
           <button
             className={filters.collection === value ? 'selected' : ''}
@@ -335,7 +353,18 @@ export default function Home() {
             {label}
           </button>
         ))}
-        {['山水', '四季', '思乡', '友情'].map((theme) => (
+        {[
+          '山水',
+          '四季',
+          '思乡',
+          '友情',
+          '月夜',
+          '田园',
+          '咏物',
+          '边塞',
+          '家国',
+          '人生感怀',
+        ].map((theme) => (
           <button
             className={filters.theme === theme ? 'selected' : ''}
             key={theme}
@@ -360,7 +389,11 @@ export default function Home() {
                   : '循着一行诗，遇见一方天地'}
             </h2>
           </div>
-          <p>共收录 {formatCount(total || catalogCount)} 首</p>
+          <p aria-live="polite">
+            {loading && page === 1
+              ? '正在寻诗……'
+              : `共收录 ${formatCount(total)} 首`}
+          </p>
         </div>
 
         <div className="filter-panel">
@@ -421,17 +454,21 @@ export default function Home() {
             />
             <button
               className="learning-filter wander-button"
-              onClick={readAtRandom}
-              disabled={!items.length}
+              onClick={() => void readAtRandom()}
+              disabled={randomLoading}
             >
-              <Shuffle /> 随心读一首
+              {randomLoading ? <LoaderCircle className="spin" /> : <Shuffle />}
+              {randomLoading ? '正在翻诗' : '随心读一首'}
             </button>
           </div>
         </div>
 
         <div className="catalog-note">
           <BookOpenText />
-          <span>风从书页来。点开一首，慢慢读它的声，也读它的远方。</span>
+          <span aria-live="polite">
+            {randomError ||
+              '风从书页来。点开一首，慢慢读它的声，也读它的远方。'}
+          </span>
         </div>
 
         {error && (
@@ -467,18 +504,18 @@ export default function Home() {
                     {String(index + 1).padStart(2, '0')}
                   </div>
                   <div className="row-content">
-                    <div className="row-meta">
-                      <span className="dynasty-mark">{poem.dynasty}</span>
-                      <span>{poem.author}</span>
-                      <span>{poem.form}</span>
-                      {poem.cipai && poem.cipai !== poem.title && (
-                        <span>{poem.cipai}</span>
-                      )}
-                    </div>
-                    <Link className="row-title" href={`/poems/${poem.id}`}>
+                    <Link className="row-main" href={`/poems/${poem.id}`}>
+                      <div className="row-meta">
+                        <span className="dynasty-mark">{poem.dynasty}</span>
+                        <span>{poem.author}</span>
+                        <span>{poem.form}</span>
+                        {poem.cipai && poem.cipai !== poem.title && (
+                          <span>{poem.cipai}</span>
+                        )}
+                      </div>
                       <h3>{poem.title}</h3>
+                      <p>{poem.excerpt}</p>
                     </Link>
-                    <p>{poem.excerpt}</p>
                     <div className="row-foot">
                       <div className="data-badges">
                         {poem.hasPinyin && <span>拼音</span>}
@@ -507,27 +544,26 @@ export default function Home() {
           </div>
         )}
 
-        {hasMore && (
-          <div className="load-more">
-            <Button
-              variant="outline"
-              disabled={loading}
-              onClick={() => void loadPoems(page + 1, true)}
-            >
+        <div className="load-more" ref={loadMoreSentinel} aria-live="polite">
+          {items.length > 0 && hasMore && (
+            <span>
               {loading ? <LoaderCircle className="spin" /> : <BookOpenText />}
-              再翻一页
-            </Button>
-          </div>
-        )}
+              {loading ? '正在续上新的诗页……' : '向下读，诗页会自己续上'}
+            </span>
+          )}
+          {items.length > 0 && !hasMore && !loading && (
+            <span>风停在这一页，已经读到尽头。</span>
+          )}
+        </div>
       </section>
 
       <footer className="site-footer">
         <span className="brand-seal">诗</span>
         <div>
-          <strong>童诗小书房</strong>
+          <strong>诗里小山河</strong>
           <p>让古诗词成为孩子可以亲近的一本暖书。</p>
         </div>
-        <small>古代作品与近现代作品按来源区分；现代译注保留溯源信息。</small>
+        <small>一字一音慢慢读，一诗一页看山河。</small>
       </footer>
     </main>
   );
