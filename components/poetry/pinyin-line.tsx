@@ -36,13 +36,22 @@ export function PinyinLine({
     const isHan = /\p{Script=Han}/u.test(character);
     const syllable = isHan ? syllables[syllableIndex++] || '' : '';
     clauses[clauses.length - 1].push(
-      <ruby
-        className={isHan ? 'pinyin-cell' : 'punctuation-cell'}
+      <span
+        className={`reading-cell ${isHan ? 'pinyin-cell' : 'punctuation-cell'}`}
         key={`${character}-${index}`}
+        aria-label={
+          visible && syllable ? `${character}，${syllable}` : character
+        }
       >
-        <span>{character}</span>
-        {visible && syllable && <rt>{syllable}</rt>}
-      </ruby>,
+        {visible && longestSyllable > 0 && (
+          <span className="pinyin-reading" aria-hidden="true">
+            {syllable || '\u00a0'}
+          </span>
+        )}
+        <span className="pinyin-character" aria-hidden="true">
+          {character}
+        </span>
+      </span>,
     );
     if (/[，。！？；]/.test(character) && index < characters.length - 1) {
       clauses.push([]);
@@ -51,7 +60,7 @@ export function PinyinLine({
 
   return (
     <span
-      className={`reader-poem-line ${sectionLine ? 'section-line' : ''} ${syllables.length ? '' : 'without-pinyin'}`}
+      className={`reader-poem-line ${sectionLine ? 'section-line' : ''} ${syllables.length ? '' : 'without-pinyin'} ${visible && longestSyllable ? 'with-pinyin' : ''}`}
       style={lineStyle}
     >
       {clauses.map((clause, index) => (

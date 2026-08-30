@@ -1093,21 +1093,23 @@ button {
   justify-content: center;
   white-space: normal;
 }
-.reader-poem-line ruby {
+.reader-poem-line .reading-cell {
   flex: none;
-  display: inline-block;
+  display: inline-grid;
+  place-items: center;
   color: #4f3627;
   font: 650 clamp(18px, 2.2vw, 25px)/1.85 var(--font-serif-cn);
-  ruby-position: over;
 }
-.reader-poem-line ruby.pinyin-cell {
+.reader-poem-line .reading-cell.pinyin-cell {
   width: var(--pinyin-cell-width, 1.45em);
-  text-align: center;
 }
-.reader-poem-line ruby.punctuation-cell {
+.reader-poem-line .reading-cell.punctuation-cell {
   width: auto;
 }
-.reader-poem-line rt {
+.reader-poem-line.with-pinyin .reading-cell {
+  grid-template-rows: 1.2em auto;
+}
+.reader-poem-line .pinyin-reading {
   width: 100%;
   overflow: visible;
   color: #a4674c;
@@ -1116,7 +1118,11 @@ button {
   text-align: center;
   white-space: nowrap;
 }
-.reader-poem-line.section-line ruby {
+.reader-poem-line .pinyin-character {
+  width: 100%;
+  text-align: center;
+}
+.reader-poem-line.section-line .reading-cell {
   color: #aa765a;
   font-size: 14px;
 }
@@ -1457,10 +1463,10 @@ button {
   .reader-poem-body {
     padding-inline: 0;
   }
-  .reader-poem-line ruby {
+  .reader-poem-line .reading-cell {
     font-size: 18px;
   }
-  .reader-poem-line rt {
+  .reader-poem-line .pinyin-reading {
     font-size: 9px;
   }
   .reader-tabs [data-slot='tabs-content'] {
@@ -1560,7 +1566,7 @@ button {
     gap: 14px;
     padding-top: 21px;
   }
-  .reader-poem-line ruby {
+  .reader-poem-line .reading-cell {
     font-size: 16px;
   }
   .reader-tabs {
