@@ -26,6 +26,7 @@ export type PoemListItem = {
   hasTranslation: boolean;
   hasAnnotations: boolean;
   popularScore: number;
+  titleCount?: number;
 };
 
 export type PoemDetail = {

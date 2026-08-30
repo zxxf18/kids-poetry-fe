@@ -201,9 +201,9 @@ function ReaderTop() {
       <Link className="reader-back" href="/#library">
         <ArrowLeft /> 返回诗词宝库
       </Link>
-      <Link className="brand" href="/" aria-label="诗里小山河首页">
+      <Link className="brand" href="/" aria-label="诗里山河首页">
         <span className="brand-seal">诗</span>
-        <span>诗里小山河</span>
+        <span>诗里山河</span>
       </Link>
       <span className="reader-top-note">一页一诗，慢慢读</span>
     </header>

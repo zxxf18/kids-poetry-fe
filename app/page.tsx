@@ -248,9 +248,9 @@ export default function Home() {
   return (
     <main className="min-h-screen overflow-x-hidden bg-background text-foreground">
       <header className="site-header">
-        <Link className="brand" href="/" aria-label="诗里小山河首页">
+        <Link className="brand" href="/" aria-label="诗里山河首页">
           <span className="brand-seal">诗</span>
-          <span>诗里小山河</span>
+          <span>诗里山河</span>
         </Link>
         <nav className="main-nav" aria-label="主导航">
           <a className="active" href="#discover">
@@ -463,110 +463,122 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="catalog-note">
-          <BookOpenText />
-          <span aria-live="polite">
-            {randomError ||
-              '风从书页来。点开一首，慢慢读它的声，也读它的远方。'}
-          </span>
-        </div>
-
-        {error && (
-          <div className="status-card error">
-            <span>书页被风吹走了</span>
-            <p>{error}</p>
-            <Button variant="outline" onClick={() => void loadPoems(1)}>
-              再试一次
-            </Button>
-          </div>
-        )}
-        {!error && loading && items.length === 0 && (
-          <div className="status-card">
-            <LoaderCircle className="spin" />
-            <p>正在翻找合适的诗……</p>
-          </div>
-        )}
-        {!error && !loading && items.length === 0 && (
-          <div className="status-card">
+        <div className="catalog-shell">
+          <div className="catalog-note">
             <BookOpenText />
-            <span>还没有找到这首诗</span>
-            <p>换一个词，或者少选一个条件试试。</p>
-          </div>
-        )}
-
-        {items.length > 0 && (
-          <div className="poem-list">
-            {items.map((poem, index) => {
-              const liked = favorites.includes(poem.id);
-              return (
-                <article className="poem-row" key={poem.id}>
-                  <div className="catalog-index" aria-hidden="true">
-                    {String(index + 1).padStart(2, '0')}
-                  </div>
-                  <div className="row-content">
-                    <Link className="row-main" href={`/poems/${poem.id}`}>
-                      <div className="row-meta">
-                        <span className="dynasty-mark">{poem.dynasty}</span>
-                        <span>{poem.author}</span>
-                        <span>{poem.form}</span>
-                        {poem.cipai && poem.cipai !== poem.title && (
-                          <span>{poem.cipai}</span>
-                        )}
-                      </div>
-                      <h3>{poem.title}</h3>
-                      <p>{poem.excerpt}</p>
-                    </Link>
-                    <div className="row-foot">
-                      <div className="data-badges">
-                        {poem.hasPinyin && <span>拼音</span>}
-                        {poem.hasTranslation && <span>译文</span>}
-                        {poem.hasAnnotations && <span>注释</span>}
-                        {!poem.hasTranslation && !poem.hasAnnotations && (
-                          <span className="plain">原文</span>
-                        )}
-                      </div>
-                      <button
-                        className={`row-favorite ${liked ? 'liked' : ''}`}
-                        onClick={() =>
-                          setFavorites((current) =>
-                            updateFavorite(current, poem.id),
-                          )
-                        }
-                        aria-label={`${liked ? '取消收藏' : '收藏'}${poem.title}`}
-                      >
-                        <Heart aria-hidden="true" /> {liked ? '已收' : '收藏'}
-                      </button>
-                    </div>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        )}
-
-        <div className="load-more" ref={loadMoreSentinel} aria-live="polite">
-          {items.length > 0 && hasMore && (
-            <span>
-              {loading ? <LoaderCircle className="spin" /> : <BookOpenText />}
-              {loading ? '正在续上新的诗页……' : '向下读，诗页会自己续上'}
+            <span aria-live="polite">
+              {randomError ||
+                '风从书页来。点开一首，慢慢读它的声，也读它的远方。'}
             </span>
+          </div>
+
+          {error && (
+            <div className="status-card error">
+              <span>书页被风吹走了</span>
+              <p>{error}</p>
+              <Button variant="outline" onClick={() => void loadPoems(1)}>
+                再试一次
+              </Button>
+            </div>
           )}
-          {items.length > 0 && !hasMore && !loading && (
-            <span>风停在这一页，已经读到尽头。</span>
+          {!error && loading && items.length === 0 && (
+            <div className="status-card">
+              <LoaderCircle className="spin" />
+              <p>正在翻找合适的诗……</p>
+            </div>
           )}
+          {!error && !loading && items.length === 0 && (
+            <div className="status-card">
+              <BookOpenText />
+              <span>还没有找到这首诗</span>
+              <p>换一个词，或者少选一个条件试试。</p>
+            </div>
+          )}
+
+          {items.length > 0 && (
+            <div className="poem-list">
+              {items.map((poem, index) => {
+                const liked = favorites.includes(poem.id);
+                return (
+                  <article className="poem-row" key={poem.id}>
+                    <div className="catalog-index" aria-hidden="true">
+                      {String(index + 1).padStart(2, '0')}
+                    </div>
+                    <div className="row-content">
+                      <Link className="row-main" href={`/poems/${poem.id}`}>
+                        <div className="row-meta">
+                          <span className="dynasty-mark">{poem.dynasty}</span>
+                          <span>{poem.author}</span>
+                          <span>{poem.form}</span>
+                          {poem.cipai && poem.cipai !== poem.title && (
+                            <span>{poem.cipai}</span>
+                          )}
+                        </div>
+                        <h3>{displayListTitle(poem)}</h3>
+                        <p>{poem.excerpt}</p>
+                      </Link>
+                      <div className="row-foot">
+                        <div className="data-badges">
+                          {poem.hasPinyin && <span>拼音</span>}
+                          {poem.hasTranslation && <span>译文</span>}
+                          {poem.hasAnnotations && <span>注释</span>}
+                          {!poem.hasTranslation && !poem.hasAnnotations && (
+                            <span className="plain">原文</span>
+                          )}
+                        </div>
+                        <button
+                          className={`row-favorite ${liked ? 'liked' : ''}`}
+                          onClick={() =>
+                            setFavorites((current) =>
+                              updateFavorite(current, poem.id),
+                            )
+                          }
+                          aria-label={`${liked ? '取消收藏' : '收藏'}${poem.title}`}
+                        >
+                          <Heart aria-hidden="true" /> {liked ? '已收' : '收藏'}
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+
+          <div className="load-more" ref={loadMoreSentinel} aria-live="polite">
+            {items.length > 0 && hasMore && (
+              <span>
+                {loading ? <LoaderCircle className="spin" /> : <BookOpenText />}
+                {loading ? '正在续上新的诗页……' : '向下读，诗页会自己续上'}
+              </span>
+            )}
+            {items.length > 0 && !hasMore && !loading && (
+              <span>风停在这一页，已经读到尽头。</span>
+            )}
+          </div>
         </div>
       </section>
 
       <footer className="site-footer">
         <span className="brand-seal">诗</span>
         <div>
-          <strong>诗里小山河</strong>
+          <strong>诗里山河</strong>
           <p>让古诗词成为孩子可以亲近的一本暖书。</p>
         </div>
         <small>一字一音慢慢读，一诗一页看山河。</small>
       </footer>
     </main>
   );
+}
+
+function displayListTitle(poem: PoemListItem): string {
+  if ((poem.titleCount || 1) <= 1) return poem.title;
+  const firstPhrase = poem.excerpt
+    .trim()
+    .split(/[，。！？；]/u, 1)[0]
+    ?.trim();
+  if (!firstPhrase || poem.title.includes(firstPhrase)) return poem.title;
+  return `${poem.title} · ${firstPhrase}`;
 }
 
 function FilterSelect({

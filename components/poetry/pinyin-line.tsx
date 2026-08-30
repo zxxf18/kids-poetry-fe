@@ -1,3 +1,5 @@
+import type { CSSProperties } from 'react';
+
 export function PinyinLine({
   line,
   pinyin,
@@ -16,12 +18,28 @@ export function PinyinLine({
   let syllableIndex = 0;
   const characters = Array.from(line);
   const clauses: React.ReactNode[][] = [[]];
+  const longestSyllable = syllables.reduce(
+    (longest, syllable) => Math.max(longest, Array.from(syllable).length),
+    0,
+  );
+  const cellWidth = Math.max(
+    1.45,
+    Math.min(2.35, longestSyllable * 0.31 + 0.15),
+  );
+  const lineStyle = (
+    visible && longestSyllable
+      ? { '--pinyin-cell-width': `${cellWidth.toFixed(2)}em` }
+      : undefined
+  ) as CSSProperties | undefined;
 
   characters.forEach((character, index) => {
     const isHan = /\p{Script=Han}/u.test(character);
     const syllable = isHan ? syllables[syllableIndex++] || '' : '';
     clauses[clauses.length - 1].push(
-      <ruby key={`${character}-${index}`}>
+      <ruby
+        className={isHan ? 'pinyin-cell' : 'punctuation-cell'}
+        key={`${character}-${index}`}
+      >
         <span>{character}</span>
         {visible && syllable && <rt>{syllable}</rt>}
       </ruby>,
@@ -34,6 +52,7 @@ export function PinyinLine({
   return (
     <span
       className={`reader-poem-line ${sectionLine ? 'section-line' : ''} ${syllables.length ? '' : 'without-pinyin'}`}
+      style={lineStyle}
     >
       {clauses.map((clause, index) => (
         <span className="reader-poem-clause" key={index}>
