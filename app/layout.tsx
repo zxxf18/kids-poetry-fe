@@ -4,6 +4,9 @@ import './globals.css';
 export const metadata: Metadata = {
   title: '诗里山河｜儿童古诗词阅读',
   description: '带拼音、注释和白话译文的儿童古诗词网站。',
+  icons: {
+    icon: '/poetry/logo.svg',
+  },
   openGraph: {
     title: '诗里山河｜在诗里看见四季与远方',
     description: '为孩子整理的古诗词小书房，逐句拼音、词语注释和白话译文。',

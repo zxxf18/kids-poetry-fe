@@ -46,6 +46,7 @@ export type PoemDetail = {
   collections: string[];
   ageMin: number;
   ageMax: number;
+  hasAudio: boolean;
 };
 
 export const API = '/poetry/api/v1';

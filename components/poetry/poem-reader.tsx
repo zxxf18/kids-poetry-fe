@@ -1,34 +1,69 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useEffect, useRef, useState } from 'react';
 import {
   ArrowLeft,
   BookOpenText,
   Check,
+  ChevronLeft,
+  ChevronRight,
   Heart,
   Languages,
   LoaderCircle,
+  Pause,
+  Play,
+  Shuffle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PinyinLine } from '@/components/poetry/pinyin-line';
 import {
+  API,
   getJSON,
   type PoemDetail,
   readFavorites,
   updateFavorite,
 } from '@/lib/poetry';
+import {
+  type ReaderContext,
+  readReaderContext,
+  saveReaderContext,
+} from '@/lib/poetry-navigation';
 
 export function PoemReader({ id }: { id: string }) {
+  const router = useRouter();
   const [detail, setDetail] = useState<PoemDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showPinyin, setShowPinyin] = useState(true);
   const [favorites, setFavorites] = useState<string[]>([]);
   const [retry, setRetry] = useState(0);
+  const [readerContext, setReaderContext] = useState<ReaderContext | null>(
+    null,
+  );
+  const [audioPlaying, setAudioPlaying] = useState(false);
+  const [audioError, setAudioError] = useState('');
+  const [randomLoading, setRandomLoading] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  useEffect(() => setFavorites(readFavorites()), []);
+  useEffect(() => {
+    setFavorites(readFavorites());
+    const context = readReaderContext();
+    if (
+      context &&
+      (context.currentId === id ||
+        (context.mode === 'list' && context.poemIds.includes(id)))
+    ) {
+      const updated = { ...context, currentId: id } as ReaderContext;
+      setReaderContext(updated);
+      saveReaderContext(updated);
+    } else {
+      setReaderContext(null);
+    }
+  }, [id]);
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true);
@@ -51,10 +86,15 @@ export function PoemReader({ id }: { id: string }) {
     return () => controller.abort();
   }, [id, retry]);
 
+  useEffect(() => {
+    setAudioPlaying(false);
+    setAudioError('');
+  }, [id]);
+
   if (loading) {
     return (
       <main className="reader-page">
-        <ReaderTop />
+        <ReaderTop returnHref={readerContext?.returnHref} />
         <div className="reader-status">
           <LoaderCircle className="spin" />
           <p>正在展开诗笺……</p>
@@ -66,7 +106,7 @@ export function PoemReader({ id }: { id: string }) {
   if (error || !detail) {
     return (
       <main className="reader-page">
-        <ReaderTop />
+        <ReaderTop returnHref={readerContext?.returnHref} />
         <div className="reader-status">
           <BookOpenText />
           <h1>{error || '没有找到这首诗'}</h1>
@@ -85,10 +125,75 @@ export function PoemReader({ id }: { id: string }) {
   }
 
   const liked = favorites.includes(detail.id);
+  const listIndex =
+    readerContext?.mode === 'list'
+      ? readerContext.poemIds.indexOf(detail.id)
+      : -1;
+  const previousID =
+    readerContext?.mode === 'list' && listIndex > 0
+      ? readerContext.poemIds[listIndex - 1]
+      : '';
+  const nextID =
+    readerContext?.mode === 'list' &&
+    listIndex >= 0 &&
+    listIndex < readerContext.poemIds.length - 1
+      ? readerContext.poemIds[listIndex + 1]
+      : '';
+
+  const navigateWithinList = (nextID: string) => {
+    if (!nextID || readerContext?.mode !== 'list') return;
+    const updated: ReaderContext = {
+      ...readerContext,
+      currentId: nextID,
+    };
+    saveReaderContext(updated);
+    setReaderContext(updated);
+    router.push(`/poems/${nextID}`);
+  };
+
+  const toggleAudio = async () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    setAudioError('');
+    try {
+      if (audio.paused) await audio.play();
+      else audio.pause();
+    } catch {
+      setAudioError('朗读暂时没有播放成功，请稍后再试。');
+    }
+  };
+
+  const readAnotherRandom = async () => {
+    if (randomLoading || readerContext?.mode !== 'random') return;
+    setRandomLoading(true);
+    try {
+      let nextID = '';
+      for (let attempt = 0; attempt < 4 && !nextID; attempt += 1) {
+        const data = await getJSON<{ items: { id: string }[] }>(
+          '/featured?collection=widely-known&limit=1&random=true',
+        );
+        if (data.items[0]?.id && data.items[0].id !== detail.id) {
+          nextID = data.items[0].id;
+        }
+      }
+      if (!nextID) throw new Error('no different poem');
+      const updated: ReaderContext = {
+        ...readerContext,
+        currentId: nextID,
+      };
+      saveReaderContext(updated);
+      setReaderContext(updated);
+      router.replace(`/poems/${nextID}`);
+    } catch {
+      setAudioError('这次风没有翻到新的一页，再试一次吧。');
+    } finally {
+      setRandomLoading(false);
+    }
+  };
 
   return (
     <main className="reader-page">
-      <ReaderTop />
+      <ReaderTop returnHref={readerContext?.returnHref} />
       <article className="reader-book">
         <header className="reader-heading">
           <div className="detail-tags">
@@ -122,7 +227,64 @@ export function PoemReader({ id }: { id: string }) {
             >
               <Heart /> {liked ? '已收藏' : '收藏'}
             </button>
+            {detail.hasAudio && (
+              <button
+                className={audioPlaying ? 'active' : ''}
+                onClick={() => void toggleAudio()}
+                aria-pressed={audioPlaying}
+              >
+                {audioPlaying ? <Pause /> : <Play />}
+                {audioPlaying ? '暂停朗读' : '听朗读'}
+              </button>
+            )}
+            {readerContext?.mode === 'random' && (
+              <button
+                onClick={() => void readAnotherRandom()}
+                disabled={randomLoading}
+              >
+                {randomLoading ? (
+                  <LoaderCircle className="spin" />
+                ) : (
+                  <Shuffle />
+                )}
+                {randomLoading ? '正在翻诗' : '再换一首'}
+              </button>
+            )}
           </div>
+          {detail.hasAudio && (
+            <audio
+              ref={audioRef}
+              src={`${API}/poems/${encodeURIComponent(detail.id)}/audio`}
+              preload="metadata"
+              onPlay={() => setAudioPlaying(true)}
+              onPause={() => setAudioPlaying(false)}
+              onEnded={() => setAudioPlaying(false)}
+              onError={() => {
+                setAudioPlaying(false);
+                setAudioError('朗读暂时没有播放成功，请稍后再试。');
+              }}
+            />
+          )}
+          {audioError && <p className="reader-action-error">{audioError}</p>}
+          {readerContext?.mode === 'list' && (
+            <nav className="reader-sequence" aria-label="按原列表切换诗词">
+              <button
+                disabled={!previousID}
+                onClick={() => navigateWithinList(previousID)}
+              >
+                <ChevronLeft /> 上一首
+              </button>
+              <span>
+                第 {listIndex + 1} 首 · 共 {readerContext.poemIds.length} 首
+              </span>
+              <button
+                disabled={!nextID}
+                onClick={() => navigateWithinList(nextID)}
+              >
+                下一首 <ChevronRight />
+              </button>
+            </nav>
+          )}
         </header>
 
         <div className="reader-spread">
@@ -144,11 +306,6 @@ export function PoemReader({ id }: { id: string }) {
                 <EmptyLearning text="这首作品的正文还在整理，请稍后再来。" />
               )}
             </div>
-            <p className="reading-hint">
-              {showPinyin
-                ? '拼音按字对照；分段标题保留原样。'
-                : '轻点上方“显示拼音”，可以逐字跟读。'}
-            </p>
           </section>
 
           <section className="reader-learning-page">
@@ -195,14 +352,20 @@ export function PoemReader({ id }: { id: string }) {
   );
 }
 
-function ReaderTop() {
+function ReaderTop({ returnHref }: { returnHref?: string }) {
   return (
     <header className="reader-topbar">
-      <Link className="reader-back" href="/#library">
+      <a className="reader-back" href={returnHref || '/poetry/#library'}>
         <ArrowLeft /> 返回诗词宝库
-      </Link>
+      </a>
       <Link className="brand" href="/" aria-label="诗里山河首页">
-        <span className="brand-seal">诗</span>
+        <Image
+          className="brand-logo"
+          src="/poetry/logo.svg"
+          width={42}
+          height={42}
+          alt=""
+        />
         <span>诗里山河</span>
       </Link>
       <span className="reader-top-note">一页一诗，慢慢读</span>
