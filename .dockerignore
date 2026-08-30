@@ -1,0 +1,10 @@
+.git
+.gitignore
+.env*
+.vinext
+dist
+node_modules
+*.tar
+*.tar.gz
+README.md
+docs
