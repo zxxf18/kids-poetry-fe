@@ -2,20 +2,20 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   BookHeart,
   BookOpenText,
-  Check,
   ChevronRight,
   Compass,
   Heart,
   LoaderCircle,
   RotateCcw,
   Search,
+  Shuffle,
   SlidersHorizontal,
   Sparkles,
-  Volume2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,47 +24,15 @@ import {
   NativeSelectOption,
 } from '@/components/ui/native-select';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+  formatCount,
+  type Facets,
+  type FacetValue,
+  getJSON,
+  type PoemListItem,
+  readFavorites,
+  updateFavorite,
+} from '@/lib/poetry';
 
-type FacetValue = { value: string; count: number };
-type Facets = {
-  dynasties?: FacetValue[];
-  forms?: FacetValue[];
-  cipais?: FacetValue[];
-  authors?: FacetValue[];
-  themes?: FacetValue[];
-  collections?: FacetValue[];
-};
-type PoemListItem = {
-  id: string;
-  title: string;
-  author: string;
-  dynasty: string;
-  kind: string;
-  form: string;
-  cipai?: string;
-  excerpt: string;
-  themes: string[];
-  collections: string[];
-  ageMin: number;
-  ageMax: number;
-  hasTranslation: boolean;
-  popularScore: number;
-};
-type PoemDetail = PoemListItem & {
-  lines: string[];
-  pinyin: string[];
-  translation: string;
-  annotations: string[];
-  appreciation?: string;
-  source: { name: string; url: string; commit: string; licenseNote: string };
-};
 type SearchFilters = {
   q: string;
   dynasty: string;
@@ -77,7 +45,6 @@ type SearchFilters = {
   collection: string;
 };
 
-const API = '/poetry/api/v1';
 const emptyFilters: SearchFilters = {
   q: '',
   dynasty: '',
@@ -89,12 +56,14 @@ const emptyFilters: SearchFilters = {
   cipai: '',
   collection: '',
 };
+
 const collectionNames: Record<string, string> = {
   'widely-known': '流传最广',
   'primary-school': '小学精选',
   'classic-anthology': '经典选本',
   'first-poems': '初识古诗',
 };
+
 const fallbackFeatured: PoemListItem[] = [
   {
     id: 'preview-jingyesi',
@@ -108,7 +77,9 @@ const fallbackFeatured: PoemListItem[] = [
     collections: ['widely-known'],
     ageMin: 6,
     ageMax: 9,
+    hasPinyin: true,
     hasTranslation: true,
+    hasAnnotations: true,
     popularScore: 100,
   },
   {
@@ -123,41 +94,17 @@ const fallbackFeatured: PoemListItem[] = [
     collections: ['widely-known'],
     ageMin: 6,
     ageMax: 9,
+    hasPinyin: true,
     hasTranslation: true,
+    hasAnnotations: true,
     popularScore: 99,
   },
-  {
-    id: 'preview-shuidiaogetou',
-    title: '水调歌头',
-    author: '苏轼',
-    dynasty: '宋',
-    kind: 'ci',
-    form: '词',
-    cipai: '水调歌头',
-    excerpt: '明月几时有？把酒问青天。',
-    themes: ['月夜'],
-    collections: ['widely-known'],
-    ageMin: 10,
-    ageMax: 14,
-    hasTranslation: true,
-    popularScore: 98,
-  },
 ];
-
-async function getJSON<T>(path: string, signal?: AbortSignal): Promise<T> {
-  const response = await fetch(`${API}${path}`, {
-    signal,
-    headers: { Accept: 'application/json' },
-  });
-  if (!response.ok) throw new Error(`请求失败（${response.status}）`);
-  return response.json() as Promise<T>;
-}
 
 function makeParams(filters: SearchFilters, page = 1) {
   const params = new URLSearchParams({
     page: String(page),
-    pageSize: '18',
-    hasTranslation: 'true',
+    pageSize: '20',
   });
   Object.entries(filters).forEach(
     ([key, value]) => value && params.set(key, value),
@@ -165,35 +112,25 @@ function makeParams(filters: SearchFilters, page = 1) {
   return params;
 }
 
-function toneFor(index: number) {
-  return ['apricot', 'sage', 'gold', 'rose'][index % 4];
-}
-
 export default function Home() {
+  const router = useRouter();
   const [draft, setDraft] = useState('');
+  const [titleDraft, setTitleDraft] = useState('');
+  const [authorDraft, setAuthorDraft] = useState('');
   const [filters, setFilters] = useState<SearchFilters>(emptyFilters);
   const [facets, setFacets] = useState<Facets>({});
   const [featured, setFeatured] = useState<PoemListItem[]>(fallbackFeatured);
   const [items, setItems] = useState<PoemListItem[]>(fallbackFeatured);
+  const [catalogCount, setCatalogCount] = useState(531001);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [detail, setDetail] = useState<PoemDetail | null>(null);
-  const [detailOpen, setDetailOpen] = useState(false);
-  const [detailLoading, setDetailLoading] = useState(false);
-  const [showPinyin, setShowPinyin] = useState(true);
   const [favorites, setFavorites] = useState<string[]>([]);
 
   useEffect(() => {
-    try {
-      setFavorites(
-        JSON.parse(localStorage.getItem('kids-poetry-favorites') || '[]'),
-      );
-    } catch {
-      setFavorites([]);
-    }
+    setFavorites(readFavorites());
     const controller = new AbortController();
     Promise.all([
       getJSON<Facets>('/facets', controller.signal),
@@ -201,14 +138,27 @@ export default function Home() {
         '/featured?collection=widely-known&limit=6',
         controller.signal,
       ),
+      getJSON<{ count: number }>('/meta', controller.signal),
     ])
-      .then(([facetData, featuredData]) => {
+      .then(([facetData, featuredData, meta]) => {
         setFacets(facetData);
         if (featuredData.items.length) setFeatured(featuredData.items);
+        setCatalogCount(meta.count);
       })
       .catch(() => undefined);
     return () => controller.abort();
   }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setFilters((current) => ({
+        ...current,
+        title: titleDraft.trim(),
+        author: authorDraft.trim(),
+      }));
+    }, 450);
+    return () => window.clearTimeout(timer);
+  }, [titleDraft, authorDraft]);
 
   const loadPoems = useCallback(
     async (nextPage: number, append = false, signal?: AbortSignal) => {
@@ -258,33 +208,25 @@ export default function Home() {
 
   const quickSearch = (q: string) => {
     setDraft(q);
+    setTitleDraft('');
+    setAuthorDraft('');
     setFilters({ ...emptyFilters, q });
     document
       .getElementById('library')
       ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
-  const openPoem = async (poem: PoemListItem) => {
-    setDetailOpen(true);
-    setDetailLoading(true);
-    setDetail(null);
-    try {
-      setDetail(
-        await getJSON<PoemDetail>(`/poems/${encodeURIComponent(poem.id)}`),
-      );
-    } catch {
-      setDetail(null);
-    } finally {
-      setDetailLoading(false);
-    }
+  const clearFilters = () => {
+    setFilters(emptyFilters);
+    setDraft('');
+    setTitleDraft('');
+    setAuthorDraft('');
   };
 
-  const toggleFavorite = (id: string) => {
-    const next = favorites.includes(id)
-      ? favorites.filter((item) => item !== id)
-      : [...favorites, id];
-    setFavorites(next);
-    localStorage.setItem('kids-poetry-favorites', JSON.stringify(next));
+  const readAtRandom = () => {
+    if (!items.length) return;
+    const poem = items[Math.floor(Math.random() * items.length)];
+    router.push(`/poems/${poem.id}`);
   };
 
   const activeCount = useMemo(
@@ -329,7 +271,8 @@ export default function Home() {
             <em>四季与远方</em>
           </h1>
           <p>
-            为孩子整理的古诗词小书房。逐句拼音、词语注释和白话译文，让每一次阅读都轻松一点。
+            收录 {formatCount(catalogCount)}{' '}
+            首诗、词、曲。正文逐句配拼音，名篇另有词语注释和白话译文。
           </p>
           <form className="hero-search" onSubmit={search}>
             <Search aria-hidden="true" />
@@ -358,13 +301,13 @@ export default function Home() {
             unoptimized
             alt="暖色绘本风山水中，一个孩子在桥边读诗"
           />
-          <button className="today-card" onClick={() => openPoem(today)}>
+          <Link className="today-card" href={`/poems/${today.id}`}>
             <span>今日一诗</span>
             <strong>《{today.title}》</strong>
             <small>
               {today.author} · 一起去看诗里的山河 <ChevronRight />
             </small>
-          </button>
+          </Link>
         </div>
       </section>
 
@@ -408,43 +351,37 @@ export default function Home() {
       <section id="library" className="content-section">
         <div className="section-heading">
           <div>
-            <span>诗词宝库</span>
+            <span>万卷诗林</span>
             <h2>
               {filters.collection
                 ? collectionNames[filters.collection] || '主题诗册'
                 : filters.q
                   ? `“${filters.q}”的结果`
-                  : '从喜欢的一首开始'}
+                  : '循着一行诗，遇见一方天地'}
             </h2>
           </div>
-          <p>{total ? `找到 ${total} 首` : '每首都有拼音、注释和译文'}</p>
+          <p>共收录 {formatCount(total || catalogCount)} 首</p>
         </div>
 
         <div className="filter-panel">
           <div className="filter-title">
             <SlidersHorizontal aria-hidden="true" />
-            <strong>找诗条件</strong>
+            <strong>循迹找诗</strong>
             {activeCount > 0 && <span>{activeCount}</span>}
-            <button
-              onClick={() => {
-                setFilters(emptyFilters);
-                setDraft('');
-              }}
-            >
-              <RotateCcw />
-              清空
+            <button onClick={clearFilters}>
+              <RotateCcw /> 重置
             </button>
           </div>
           <div className="filters-grid">
             <Input
-              value={filters.title}
-              onChange={(event) => setFilter('title', event.target.value)}
+              value={titleDraft}
+              onChange={(event) => setTitleDraft(event.target.value)}
               placeholder="按题目"
               aria-label="按题目筛选"
             />
             <Input
-              value={filters.author}
-              onChange={(event) => setFilter('author', event.target.value)}
+              value={authorDraft}
+              onChange={(event) => setAuthorDraft(event.target.value)}
               placeholder="按诗人姓名"
               aria-label="按诗人姓名筛选"
             />
@@ -462,6 +399,7 @@ export default function Home() {
               <NativeSelectOption value="">全部内容</NativeSelectOption>
               <NativeSelectOption value="poem">诗</NativeSelectOption>
               <NativeSelectOption value="ci">词</NativeSelectOption>
+              <NativeSelectOption value="qu">曲</NativeSelectOption>
             </NativeSelect>
             <FilterSelect
               label="全部体裁"
@@ -476,12 +414,24 @@ export default function Home() {
               onChange={(value) => setFilter('theme', value)}
             />
             <FilterSelect
-              label="全部词牌"
+              label="全部词牌 / 曲牌"
               value={filters.cipai}
               values={facets.cipais}
               onChange={(value) => setFilter('cipai', value)}
             />
+            <button
+              className="learning-filter wander-button"
+              onClick={readAtRandom}
+              disabled={!items.length}
+            >
+              <Shuffle /> 随心读一首
+            </button>
           </div>
+        </div>
+
+        <div className="catalog-note">
+          <BookOpenText />
+          <span>风从书页来。点开一首，慢慢读它的声，也读它的远方。</span>
         </div>
 
         {error && (
@@ -508,42 +458,55 @@ export default function Home() {
         )}
 
         {items.length > 0 && (
-          <div className="poem-grid">
-            {items.map((poem, index) => (
-              <article className={`poem-card ${toneFor(index)}`} key={poem.id}>
-                <div className="poem-card-top">
-                  <span>{poem.dynasty}</span>
-                  <button
-                    className={favorites.includes(poem.id) ? 'liked' : ''}
-                    onClick={() => toggleFavorite(poem.id)}
-                    aria-label={`${favorites.includes(poem.id) ? '取消收藏' : '收藏'}${poem.title}`}
-                  >
-                    <Heart aria-hidden="true" />
-                  </button>
-                </div>
-                <small>
-                  {[poem.form, ...poem.themes]
-                    .filter(Boolean)
-                    .slice(0, 3)
-                    .join(' · ')}
-                </small>
-                <h3>{poem.title}</h3>
-                <p>{poem.excerpt}</p>
-                <footer>
-                  <span>
-                    {poem.author}
-                    {poem.cipai && poem.cipai !== poem.title
-                      ? ` · ${poem.cipai}`
-                      : ''}
-                  </span>
-                  <button onClick={() => openPoem(poem)}>
-                    读一读 <ChevronRight aria-hidden="true" />
-                  </button>
-                </footer>
-              </article>
-            ))}
+          <div className="poem-list">
+            {items.map((poem, index) => {
+              const liked = favorites.includes(poem.id);
+              return (
+                <article className="poem-row" key={poem.id}>
+                  <div className="catalog-index" aria-hidden="true">
+                    {String(index + 1).padStart(2, '0')}
+                  </div>
+                  <div className="row-content">
+                    <div className="row-meta">
+                      <span className="dynasty-mark">{poem.dynasty}</span>
+                      <span>{poem.author}</span>
+                      <span>{poem.form}</span>
+                      {poem.cipai && poem.cipai !== poem.title && (
+                        <span>{poem.cipai}</span>
+                      )}
+                    </div>
+                    <Link className="row-title" href={`/poems/${poem.id}`}>
+                      <h3>{poem.title}</h3>
+                    </Link>
+                    <p>{poem.excerpt}</p>
+                    <div className="row-foot">
+                      <div className="data-badges">
+                        {poem.hasPinyin && <span>拼音</span>}
+                        {poem.hasTranslation && <span>译文</span>}
+                        {poem.hasAnnotations && <span>注释</span>}
+                        {!poem.hasTranslation && !poem.hasAnnotations && (
+                          <span className="plain">原文</span>
+                        )}
+                      </div>
+                      <button
+                        className={`row-favorite ${liked ? 'liked' : ''}`}
+                        onClick={() =>
+                          setFavorites((current) =>
+                            updateFavorite(current, poem.id),
+                          )
+                        }
+                        aria-label={`${liked ? '取消收藏' : '收藏'}${poem.title}`}
+                      >
+                        <Heart aria-hidden="true" /> {liked ? '已收' : '收藏'}
+                      </button>
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
           </div>
         )}
+
         {hasMore && (
           <div className="load-more">
             <Button
@@ -564,98 +527,8 @@ export default function Home() {
           <strong>童诗小书房</strong>
           <p>让古诗词成为孩子可以亲近的一本暖书。</p>
         </div>
-        <small>古诗原文为公共领域作品；现代译注按来源保留溯源信息。</small>
+        <small>古代作品与近现代作品按来源区分；现代译注保留溯源信息。</small>
       </footer>
-
-      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
-        <DialogContent className="poem-dialog" showCloseButton>
-          {detailLoading && (
-            <div className="detail-loading">
-              <LoaderCircle className="spin" />
-              <p>正在展开诗笺……</p>
-            </div>
-          )}
-          {!detailLoading && !detail && (
-            <div className="detail-loading">
-              <BookOpenText />
-              <p>这页暂时没有打开，请稍后再试。</p>
-            </div>
-          )}
-          {detail && (
-            <>
-              <DialogHeader className="detail-header">
-                <div className="detail-tags">
-                  <span>{detail.dynasty}</span>
-                  <span>{detail.form}</span>
-                  {detail.cipai && <span>{detail.cipai}</span>}
-                </div>
-                <DialogTitle>{detail.title}</DialogTitle>
-                <DialogDescription>
-                  {detail.dynasty} · {detail.author}　适读 {detail.ageMin}–
-                  {detail.ageMax} 岁
-                </DialogDescription>
-                <div className="detail-actions">
-                  <button
-                    className={showPinyin ? 'active' : ''}
-                    onClick={() => setShowPinyin(!showPinyin)}
-                  >
-                    <Volume2 />
-                    拼音
-                  </button>
-                  <button
-                    className={favorites.includes(detail.id) ? 'active' : ''}
-                    onClick={() => toggleFavorite(detail.id)}
-                  >
-                    <Heart />
-                    {favorites.includes(detail.id) ? '已收藏' : '收藏'}
-                  </button>
-                </div>
-              </DialogHeader>
-              <div className={`poem-paper ${showPinyin ? 'with-pinyin' : ''}`}>
-                {detail.lines.map((line, index) => (
-                  <PinyinLine
-                    key={`${line}-${index}`}
-                    line={line}
-                    pinyin={detail.pinyin[index]}
-                    visible={showPinyin}
-                  />
-                ))}
-              </div>
-              <Tabs defaultValue="translation" className="detail-tabs">
-                <TabsList>
-                  <TabsTrigger value="translation">白话译文</TabsTrigger>
-                  <TabsTrigger value="notes">词语注释</TabsTrigger>
-                  {detail.appreciation && (
-                    <TabsTrigger value="appreciation">读诗小赏</TabsTrigger>
-                  )}
-                </TabsList>
-                <TabsContent value="translation">
-                  <ReadableText text={detail.translation} />
-                </TabsContent>
-                <TabsContent value="notes">
-                  <ul className="note-list">
-                    {detail.annotations.map((note, index) => (
-                      <li key={`${index}-${note}`}>
-                        <Check />
-                        {note}
-                      </li>
-                    ))}
-                  </ul>
-                </TabsContent>
-                {detail.appreciation && (
-                  <TabsContent value="appreciation">
-                    <ReadableText text={detail.appreciation} />
-                  </TabsContent>
-                )}
-              </Tabs>
-              <p className="source-note">
-                数据：{detail.source.name} · 固定版本{' '}
-                {detail.source.commit.slice(0, 8)}。{detail.source.licenseNote}
-              </p>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
     </main>
   );
 }
@@ -680,52 +553,9 @@ function FilterSelect({
       <NativeSelectOption value="">{label}</NativeSelectOption>
       {values.map((item) => (
         <NativeSelectOption value={item.value} key={item.value}>
-          {item.value}（{item.count}）
+          {item.value}（{formatCount(item.count)}）
         </NativeSelectOption>
       ))}
     </NativeSelect>
-  );
-}
-
-function ReadableText({ text }: { text: string }) {
-  return (
-    <div className="readable-text">
-      {text
-        .split(/\n+/)
-        .filter(Boolean)
-        .map((paragraph, index) => (
-          <p key={`${index}-${paragraph}`}>{paragraph}</p>
-        ))}
-    </div>
-  );
-}
-
-function PinyinLine({
-  line,
-  pinyin,
-  visible,
-}: {
-  line: string;
-  pinyin: string;
-  visible: boolean;
-}) {
-  const syllables = pinyin
-    .replace(/[，。！？；、,.!?;：“”‘’（）()]/g, ' ')
-    .split(/\s+/)
-    .filter(Boolean);
-  let syllableIndex = 0;
-  return (
-    <span className="poem-line">
-      {Array.from(line).map((character, index) => {
-        const isHan = /\p{Script=Han}/u.test(character);
-        const syllable = isHan ? syllables[syllableIndex++] || '' : '';
-        return (
-          <ruby key={`${character}-${index}`}>
-            <span>{character}</span>
-            {visible && syllable && <rt>{syllable}</rt>}
-          </ruby>
-        );
-      })}
-    </span>
   );
 }

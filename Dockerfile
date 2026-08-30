@@ -14,4 +14,5 @@ COPY --from=builder --chown=node:node /app/node_modules ./node_modules
 COPY --from=builder --chown=node:node /app/dist ./dist
 USER node
 EXPOSE 3000
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 CMD wget -q -O /dev/null http://127.0.0.1:3000/poetry/ || exit 1
 CMD ["npm", "run", "start", "--", "-p", "3000", "-H", "0.0.0.0"]
