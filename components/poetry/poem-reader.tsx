@@ -103,8 +103,7 @@ export function PoemReader({ id }: { id: string }) {
           </div>
           <h1>{detail.title}</h1>
           <p>
-            {detail.dynasty} · {detail.author}　适读 {detail.ageMin}–
-            {detail.ageMax} 岁
+            {detail.dynasty} · {detail.author}
           </p>
           <div className="reader-actions">
             <button
