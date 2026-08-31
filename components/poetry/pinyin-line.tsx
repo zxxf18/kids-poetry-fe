@@ -1,5 +1,3 @@
-import type { CSSProperties } from 'react';
-
 export function PinyinLine({
   line,
   pinyin,
@@ -18,19 +16,7 @@ export function PinyinLine({
   let syllableIndex = 0;
   const characters = Array.from(line);
   const clauses: React.ReactNode[][] = [[]];
-  const longestSyllable = syllables.reduce(
-    (longest, syllable) => Math.max(longest, Array.from(syllable).length),
-    0,
-  );
-  const cellWidth = Math.max(
-    1.45,
-    Math.min(2.35, longestSyllable * 0.31 + 0.15),
-  );
-  const lineStyle = (
-    visible && longestSyllable
-      ? { '--pinyin-cell-width': `${cellWidth.toFixed(2)}em` }
-      : undefined
-  ) as CSSProperties | undefined;
+  const hasPinyin = syllables.length > 0;
 
   characters.forEach((character, index) => {
     const isHan = /\p{Script=Han}/u.test(character);
@@ -43,7 +29,7 @@ export function PinyinLine({
           visible && syllable ? `${character}，${syllable}` : character
         }
       >
-        {visible && longestSyllable > 0 && (
+        {visible && hasPinyin && (
           <span className="pinyin-reading" aria-hidden="true">
             {syllable || '\u00a0'}
           </span>
@@ -60,8 +46,7 @@ export function PinyinLine({
 
   return (
     <span
-      className={`reader-poem-line ${sectionLine ? 'section-line' : ''} ${syllables.length ? '' : 'without-pinyin'} ${visible && longestSyllable ? 'with-pinyin' : ''}`}
-      style={lineStyle}
+      className={`reader-poem-line ${sectionLine ? 'section-line' : ''} ${hasPinyin ? '' : 'without-pinyin'} ${visible && hasPinyin ? 'with-pinyin' : ''}`}
     >
       {clauses.map((clause, index) => (
         <span className="reader-poem-clause" key={index}>
@@ -73,6 +58,25 @@ export function PinyinLine({
       )}
     </span>
   );
+}
+
+export function poemPinyinCellWidth(lines: string[]): string {
+  const longestSyllable = lines
+    .flatMap((line) =>
+      line
+        .replace(/[，。！？；、,.!?;：“”‘’（）()《》【】\[\]]/g, ' ')
+        .split(/\s+/)
+        .filter(Boolean),
+    )
+    .reduce(
+      (longest, syllable) => Math.max(longest, Array.from(syllable).length),
+      0,
+    );
+  const width = Math.max(
+    1.45,
+    Math.min(2.35, longestSyllable * 0.31 + 0.15),
+  );
+  return `${width.toFixed(2)}em`;
 }
 
 const sectionSounds: Record<string, string> = {

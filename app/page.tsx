@@ -38,6 +38,7 @@ import {
   saveHomeState,
   saveReaderContext,
 } from '@/lib/poetry-navigation';
+import { chooseFreshPoem } from '@/lib/poetry-random';
 
 type SearchFilters = {
   q: string;
@@ -412,10 +413,13 @@ export default function Home() {
       })
       .catch(() => undefined);
     void getJSON<{ items: PoemListItem[] }>(
-      '/featured?collection=widely-known&limit=1&random=true',
+      '/featured?collection=widely-known&limit=12&random=true',
       controller.signal,
     )
-      .then((data) => setFeatured(data.items))
+      .then((data) => {
+        const poem = chooseFreshPoem(data.items);
+        if (poem) setFeatured([poem]);
+      })
       .catch(() => undefined);
     void getJSON<{ count: number }>('/meta', controller.signal)
       .then((meta) => setCatalogCount(meta.count))
@@ -553,9 +557,9 @@ export default function Home() {
     setRandomError('');
     try {
       const data = await getJSON<{ items: PoemListItem[] }>(
-        '/featured?collection=widely-known&limit=1&random=true',
+        '/featured?collection=widely-known&limit=12&random=true',
       );
-      const poem = data.items[0];
+      const poem = chooseFreshPoem(data.items);
       if (!poem) throw new Error('没有可读作品');
       await getJSON(`/poems/${encodeURIComponent(poem.id)}`);
       const returnHref = makeHomeHref(filters, true);

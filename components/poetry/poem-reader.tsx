@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import {
   ArrowLeft,
   BookOpenText,
@@ -19,7 +19,10 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { PinyinLine } from '@/components/poetry/pinyin-line';
+import {
+  PinyinLine,
+  poemPinyinCellWidth,
+} from '@/components/poetry/pinyin-line';
 import {
   API,
   getJSON,
@@ -32,6 +35,7 @@ import {
   readReaderContext,
   saveReaderContext,
 } from '@/lib/poetry-navigation';
+import { chooseFreshPoem } from '@/lib/poetry-random';
 
 export function PoemReader({ id }: { id: string }) {
   const router = useRouter();
@@ -139,6 +143,9 @@ export function PoemReader({ id }: { id: string }) {
     listIndex < readerContext.poemIds.length - 1
       ? readerContext.poemIds[listIndex + 1]
       : '';
+  const poemPageStyle = {
+    '--pinyin-cell-width': poemPinyinCellWidth(detail.pinyin),
+  } as CSSProperties;
 
   const navigateWithinList = (nextID: string) => {
     if (!nextID || readerContext?.mode !== 'list') return;
@@ -167,15 +174,12 @@ export function PoemReader({ id }: { id: string }) {
     if (randomLoading || readerContext?.mode !== 'random') return;
     setRandomLoading(true);
     try {
-      let nextID = '';
-      for (let attempt = 0; attempt < 4 && !nextID; attempt += 1) {
-        const data = await getJSON<{ items: { id: string }[] }>(
-          '/featured?collection=widely-known&limit=1&random=true',
-        );
-        if (data.items[0]?.id && data.items[0].id !== detail.id) {
-          nextID = data.items[0].id;
-        }
-      }
+      const data = await getJSON<{ items: { id: string }[] }>(
+        '/featured?collection=widely-known&limit=12&random=true',
+      );
+      const nextID = chooseFreshPoem(
+        data.items.filter((item) => item.id !== detail.id),
+      )?.id;
       if (!nextID) throw new Error('no different poem');
       const updated: ReaderContext = {
         ...readerContext,
@@ -290,6 +294,7 @@ export function PoemReader({ id }: { id: string }) {
         <div className="reader-spread">
           <section
             className={`reader-poem-page ${showPinyin ? 'with-pinyin' : ''}`}
+            style={poemPageStyle}
           >
             <div className="page-label">原文</div>
             <div className="reader-poem-body">
