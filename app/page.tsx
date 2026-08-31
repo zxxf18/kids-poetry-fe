@@ -3,7 +3,13 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import {
   BookHeart,
   BookOpenText,
@@ -332,41 +338,58 @@ export default function Home() {
   );
   const [favorites, setFavorites] = useState<string[]>([]);
   const [hydrated, setHydrated] = useState(false);
+  const [restoringList, setRestoringList] = useState(false);
   const requestSequence = useRef(0);
   const loadingRequest = useRef(false);
   const loadMoreSentinel = useRef<HTMLDivElement | null>(null);
   const skipInitialLoad = useRef(false);
   const restoreScrollY = useRef<number | null>(null);
+  const restoreAnchor = useRef<{ id: string; offset: number } | null>(null);
 
   useEffect(() => {
-    const locationFilters = readFilters(
-      new URLSearchParams(window.location.search),
-    );
-    const currentHref = `${window.location.pathname}${window.location.search}${window.location.hash || (window.location.search ? '#library' : '')}`;
-    const saved = readHomeState();
-    if (
-      saved &&
-      saved.returnHref === currentHref &&
-      Date.now() - saved.savedAt < 12 * 60 * 60 * 1000
-    ) {
-      setFilters(saved.filters as SearchFilters);
-      setDraft(saved.draft);
-      setTitleDraft(saved.titleDraft);
-      setAuthorDraft(saved.authorDraft);
-      setItems(saved.items);
-      setTotal(saved.total);
-      setPage(saved.page);
-      setHasMore(saved.hasMore);
-      skipInitialLoad.current = true;
-      restoreScrollY.current = saved.scrollY;
-    } else {
-      setFilters(locationFilters);
-      setDraft(locationFilters.q);
-      setTitleDraft(locationFilters.title);
-      setAuthorDraft(locationFilters.author);
-    }
-    window.history.scrollRestoration = 'manual';
-    setHydrated(true);
+    let cancelled = false;
+    void (async () => {
+      const locationFilters = readFilters(
+        new URLSearchParams(window.location.search),
+      );
+      const currentHref = `${window.location.pathname}${window.location.search}${window.location.hash || (window.location.search ? '#library' : '')}`;
+      const saved = await readHomeState();
+      if (cancelled) return;
+      if (
+        saved &&
+        saved.returnHref === currentHref &&
+        Date.now() - saved.savedAt < 12 * 60 * 60 * 1000
+      ) {
+        setFilters(saved.filters as SearchFilters);
+        setDraft(saved.draft);
+        setTitleDraft(saved.titleDraft);
+        setAuthorDraft(saved.authorDraft);
+        setItems(saved.items);
+        setTotal(saved.total);
+        setPage(saved.page);
+        setHasMore(saved.hasMore);
+        setLoading(false);
+        setRestoringList(true);
+        skipInitialLoad.current = true;
+        restoreScrollY.current = saved.scrollY;
+        if (saved.anchorId && typeof saved.anchorOffset === 'number') {
+          restoreAnchor.current = {
+            id: saved.anchorId,
+            offset: saved.anchorOffset,
+          };
+        }
+      } else {
+        setFilters(locationFilters);
+        setDraft(locationFilters.q);
+        setTitleDraft(locationFilters.title);
+        setAuthorDraft(locationFilters.author);
+      }
+      window.history.scrollRestoration = 'manual';
+      setHydrated(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -392,14 +415,33 @@ export default function Home() {
     );
   }, [filters, hydrated]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!hydrated || restoreScrollY.current === null || items.length === 0)
       return;
     const y = restoreScrollY.current;
-    restoreScrollY.current = null;
-    window.requestAnimationFrame(() =>
-      window.requestAnimationFrame(() => window.scrollTo({ top: y })),
+    const anchor = restoreAnchor.current;
+    const delays = [0, 80, 220, 500];
+    const timers = delays.map((delay, index) =>
+      window.setTimeout(() => {
+        const target = anchor
+          ? document.querySelector<HTMLElement>(
+              `[data-poem-id="${CSS.escape(anchor.id)}"]`,
+            )
+          : null;
+        if (target && anchor) {
+          const delta = target.getBoundingClientRect().top - anchor.offset;
+          window.scrollTo({ top: window.scrollY + delta });
+        } else {
+          window.scrollTo({ top: y });
+        }
+        if (index === delays.length - 1) {
+          restoreScrollY.current = null;
+          restoreAnchor.current = null;
+          setRestoringList(false);
+        }
+      }, delay),
     );
+    return () => timers.forEach(window.clearTimeout);
   }, [hydrated, items.length]);
 
   useEffect(() => {
@@ -429,11 +471,13 @@ export default function Home() {
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
-      setFilters((current) => ({
-        ...current,
-        title: titleDraft.trim(),
-        author: authorDraft.trim(),
-      }));
+      setFilters((current) => {
+        const title = titleDraft.trim();
+        const author = authorDraft.trim();
+        if (current.title === title && current.author === author)
+          return current;
+        return { ...current, title, author };
+      });
     }, 450);
     return () => window.clearTimeout(timer);
   }, [titleDraft, authorDraft]);
@@ -494,7 +538,14 @@ export default function Home() {
 
   useEffect(() => {
     const target = loadMoreSentinel.current;
-    if (!target || !hasMore || loading || loadingRequest.current || error)
+    if (
+      !target ||
+      !hasMore ||
+      loading ||
+      restoringList ||
+      loadingRequest.current ||
+      error
+    )
       return;
     const observer = new IntersectionObserver(
       ([entry]) => {
@@ -506,7 +557,7 @@ export default function Home() {
     );
     observer.observe(target);
     return () => observer.disconnect();
-  }, [error, hasMore, loadPoems, loading, page]);
+  }, [error, hasMore, loadPoems, loading, page, restoringList]);
 
   const setFilter = (key: keyof SearchFilters, value: string) => {
     setFilters((current) => ({ ...current, [key]: value }));
@@ -573,10 +624,10 @@ export default function Home() {
     }
   };
 
-  const rememberListVisit = (poemID: string) => {
+  const rememberListVisit = async (poemID: string, anchorOffset: number) => {
     const returnHref = makeHomeHref(filters, true);
     window.history.replaceState(window.history.state, '', returnHref);
-    saveHomeState({
+    const state = {
       filters,
       draft,
       titleDraft,
@@ -586,15 +637,18 @@ export default function Home() {
       page,
       hasMore,
       scrollY: window.scrollY,
+      anchorId: poemID,
+      anchorOffset,
       returnHref,
       savedAt: Date.now(),
-    });
+    };
     saveReaderContext({
       mode: 'list',
       poemIds: items.map((item) => item.id),
       currentId: poemID,
       returnHref,
     });
+    await saveHomeState(state);
   };
 
   const today = featured[0];
@@ -873,7 +927,11 @@ export default function Home() {
               {items.map((poem, index) => {
                 const liked = favorites.includes(poem.id);
                 return (
-                  <article className="poem-row" key={poem.id}>
+                  <article
+                    className="poem-row"
+                    data-poem-id={poem.id}
+                    key={poem.id}
+                  >
                     <div className="catalog-index" aria-hidden="true">
                       {String(index + 1).padStart(2, '0')}
                     </div>
@@ -881,7 +939,25 @@ export default function Home() {
                       <Link
                         className="row-main"
                         href={`/poems/${poem.id}`}
-                        onClick={() => rememberListVisit(poem.id)}
+                        onClick={(event) => {
+                          if (
+                            event.metaKey ||
+                            event.ctrlKey ||
+                            event.shiftKey ||
+                            event.altKey
+                          ) {
+                            void rememberListVisit(poem.id, 0);
+                            return;
+                          }
+                          event.preventDefault();
+                          const anchorOffset =
+                            event.currentTarget
+                              .closest('article')
+                              ?.getBoundingClientRect().top ?? 0;
+                          void rememberListVisit(poem.id, anchorOffset).then(
+                            () => router.push(`/poems/${poem.id}`),
+                          );
+                        }}
                       >
                         <div className="row-meta">
                           <span className="dynasty-mark">{poem.dynasty}</span>

@@ -358,11 +358,14 @@ export function PoemReader({ id }: { id: string }) {
 }
 
 function ReaderTop({ returnHref }: { returnHref?: string }) {
+  const clientReturnHref = returnHref
+    ? returnHref.replace(/^\/poetry(?=\/|$)/, '') || '/'
+    : '/#library';
   return (
     <header className="reader-topbar">
-      <a className="reader-back" href={returnHref || '/poetry/#library'}>
+      <Link className="reader-back" href={clientReturnHref}>
         <ArrowLeft /> 返回诗词宝库
-      </a>
+      </Link>
       <Link className="brand" href="/" aria-label="诗里山河首页">
         <Image
           className="brand-logo"
