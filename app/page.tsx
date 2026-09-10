@@ -93,7 +93,7 @@ const heroVariants = [
     lead: '在一行诗里，',
     emphasis: '遇见山河',
     description: '循着清亮的诗句，去看远山、流水与少年心中的辽阔。',
-    image: '/poetry/hero/hero-ink-01.webp',
+    image: '/hero/hero-ink-01.webp',
     alt: '晨光里的石桥与远山',
   },
   {
@@ -101,7 +101,7 @@ const heroVariants = [
     lead: '听竹叶落雨，',
     emphasis: '读一纸清欢',
     description: '让字音轻轻落下，在雨声和竹影间读懂古人的心事。',
-    image: '/poetry/hero/hero-ink-02.webp',
+    image: '/hero/hero-ink-02.webp',
     alt: '烟雨竹林中的小径',
   },
   {
@@ -109,7 +109,7 @@ const heroVariants = [
     lead: '月光落进书页，',
     emphasis: '诗意悄然生长',
     description: '从一轮明月出发，听诗人把思念写进清风与水波。',
-    image: '/poetry/hero/hero-ink-03.webp',
+    image: '/hero/hero-ink-03.webp',
     alt: '月下湖面与一叶小舟',
   },
   {
@@ -117,7 +117,7 @@ const heroVariants = [
     lead: '桃花顺水去，',
     emphasis: '少年向春行',
     description: '读花影、春风和溪水，也读每一句蓬勃明亮的心情。',
-    image: '/poetry/hero/hero-ink-04.webp',
+    image: '/hero/hero-ink-04.webp',
     alt: '桃花盛开的春日山谷',
   },
   {
@@ -125,7 +125,7 @@ const heroVariants = [
     lead: '雪落梅枝上，',
     emphasis: '诗从暖窗来',
     description: '在安静的冬日里，读一枝梅，也读坚韧和温柔。',
-    image: '/poetry/hero/hero-ink-05.webp',
+    image: '/hero/hero-ink-05.webp',
     alt: '雪村与盛开的红梅',
   },
   {
@@ -133,7 +133,7 @@ const heroVariants = [
     lead: '长风越关山，',
     emphasis: '少年有远志',
     description: '走近边塞的月与风，读见勇气、家国和辽阔天地。',
-    image: '/poetry/hero/hero-ink-06.webp',
+    image: '/hero/hero-ink-06.webp',
     alt: '月光下的边塞关山',
   },
   {
@@ -141,7 +141,7 @@ const heroVariants = [
     lead: '飞瀑入云间，',
     emphasis: '一句见天地',
     description: '让山水走进眼前，在古人的笔下听见万物回响。',
-    image: '/poetry/hero/hero-ink-07.webp',
+    image: '/hero/hero-ink-07.webp',
     alt: '群山飞瀑与白鹤',
   },
   {
@@ -149,7 +149,7 @@ const heroVariants = [
     lead: '荷风翻书页，',
     emphasis: '夏日有清香',
     description: '从一池青荷读起，把蝉声、月色和清香收进诗里。',
-    image: '/poetry/hero/hero-ink-08.webp',
+    image: '/hero/hero-ink-08.webp',
     alt: '夏日荷塘与远山',
   },
   {
@@ -157,7 +157,7 @@ const heroVariants = [
     lead: '枫叶染秋山，',
     emphasis: '古意正温柔',
     description: '沿着一条山路，读秋风、归雁与沉静悠长的时光。',
-    image: '/poetry/hero/hero-ink-09.webp',
+    image: '/hero/hero-ink-09.webp',
     alt: '红枫山路与云中古寺',
   },
   {
@@ -165,7 +165,7 @@ const heroVariants = [
     lead: '春风过田野，',
     emphasis: '燕子衔诗来',
     description: '看麦苗新绿、纸鸢高飞，在诗里遇见鲜活的人间。',
-    image: '/poetry/hero/hero-ink-10.webp',
+    image: '/hero/hero-ink-10.webp',
     alt: '春日田野、燕子与纸鸢',
   },
   {
@@ -173,7 +173,7 @@ const heroVariants = [
     lead: '云海连天阔，',
     emphasis: '心随诗更远',
     description: '从浪花读到天边，让想象越过山海，抵达更远的地方。',
-    image: '/poetry/hero/hero-ink-11.webp',
+    image: '/hero/hero-ink-11.webp',
     alt: '海崖、云海与远帆',
   },
   {
@@ -181,7 +181,7 @@ const heroVariants = [
     lead: '灯火映小桥，',
     emphasis: '今夜读江南',
     description: '在桨声与灯火里慢慢读，听见水乡静谧的夜。',
-    image: '/poetry/hero/hero-ink-12.webp',
+    image: '/hero/hero-ink-12.webp',
     alt: '月夜江南水乡与石桥灯影',
   },
 ] as const;
@@ -308,7 +308,7 @@ function makeHomeHref(filters: SearchFilters, keepLibrary = false) {
   );
   const query = params.toString();
   const library = keepLibrary || query ? '#library' : '';
-  return `/poetry/${query ? `?${query}` : ''}${library}`;
+  return `/${query ? `?${query}` : ''}${library}`;
 }
 
 export default function Home() {
@@ -660,7 +660,7 @@ export default function Home() {
         <Link className="brand" href="/" aria-label="诗里山河首页">
           <Image
             className="brand-logo"
-            src="/poetry/logo.svg"
+            src="/logo.svg"
             width={42}
             height={42}
             alt=""
@@ -1015,7 +1015,7 @@ export default function Home() {
       <footer className="site-footer">
         <Image
           className="brand-logo"
-          src="/poetry/logo.svg"
+          src="/logo.svg"
           width={42}
           height={42}
           alt=""

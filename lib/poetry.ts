@@ -49,7 +49,7 @@ export type PoemDetail = {
   hasAudio: boolean;
 };
 
-export const API = '/poetry/api/v1';
+export const API = '/api/v1';
 
 export async function getJSON<T>(
   path: string,

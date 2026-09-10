@@ -358,9 +358,7 @@ export function PoemReader({ id }: { id: string }) {
 }
 
 function ReaderTop({ returnHref }: { returnHref?: string }) {
-  const clientReturnHref = returnHref
-    ? returnHref.replace(/^\/poetry(?=\/|$)/, '') || '/'
-    : '/#library';
+  const clientReturnHref = returnHref || '/#library';
   return (
     <header className="reader-topbar">
       <Link className="reader-back" href={clientReturnHref}>
@@ -369,7 +367,7 @@ function ReaderTop({ returnHref }: { returnHref?: string }) {
       <Link className="brand" href="/" aria-label="诗里山河首页">
         <Image
           className="brand-logo"
-          src="/poetry/logo.svg"
+          src="/logo.svg"
           width={42}
           height={42}
           alt=""

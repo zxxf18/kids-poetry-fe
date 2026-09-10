@@ -3,7 +3,6 @@ import type { NextConfig } from 'next';
 const apiOrigin = process.env.POETRY_API_ORIGIN?.replace(/\/$/, '');
 
 const nextConfig: NextConfig = {
-  basePath: '/poetry',
   async rewrites() {
     if (!apiOrigin) return [];
     return [
