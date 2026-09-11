@@ -688,16 +688,18 @@ export default function Home() {
           <a href="#library">诗词宝库</a>
           <a href="#collections">主题诗册</a>
         </nav>
-        <a
-          className="favorite-link"
-          href="#library"
-          aria-label={`我的诗笺，已收藏${favorites.length}首`}
-        >
-          <BookHeart aria-hidden="true" />
-          <span>我的诗笺</span>
-          <b>{favorites.length}</b>
-        </a>
-        {user ? <button className="favorite-link" type="button" onClick={() => void logout()}>{user.display_name || user.username} · 退出</button> : <button className="favorite-link" type="button" onClick={() => startLogin()}>登录夜不洛</button>}
+        <div className="header-actions">
+          <a
+            className="favorite-link"
+            href="#library"
+            aria-label={`我的诗笺，已收藏${favorites.length}首`}
+          >
+            <BookHeart aria-hidden="true" />
+            <span>我的诗笺</span>
+            <b>{favorites.length}</b>
+          </a>
+          {user ? <button className="favorite-link" type="button" onClick={() => void logout()}>{user.display_name || user.username} · 退出</button> : <button className="favorite-link" type="button" onClick={() => startLogin()}>登录夜不洛</button>}
+        </div>
       </header>
 
       <section id="discover" className="hero-shell">
