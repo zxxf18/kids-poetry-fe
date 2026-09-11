@@ -45,6 +45,7 @@ import {
   saveReaderContext,
 } from '@/lib/poetry-navigation';
 import { chooseFreshPoem } from '@/lib/poetry-random';
+import { getCurrentUser, logout, startLogin, type AuthUser } from '@/lib/auth';
 
 type SearchFilters = {
   q: string;
@@ -339,12 +340,22 @@ export default function Home() {
   const [favorites, setFavorites] = useState<string[]>([]);
   const [hydrated, setHydrated] = useState(false);
   const [restoringList, setRestoringList] = useState(false);
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [authReady, setAuthReady] = useState(false);
   const requestSequence = useRef(0);
   const loadingRequest = useRef(false);
   const loadMoreSentinel = useRef<HTMLDivElement | null>(null);
   const skipInitialLoad = useRef(false);
   const restoreScrollY = useRef<number | null>(null);
   const restoreAnchor = useRef<{ id: string; offset: number } | null>(null);
+
+  useEffect(() => { void getCurrentUser().then(setUser).finally(() => setAuthReady(true)); }, []);
+  const requireLogin = (event?: { preventDefault: () => void }) => {
+    if (user) return true;
+    event?.preventDefault();
+    if (authReady) startLogin();
+    return false;
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -565,6 +576,7 @@ export default function Home() {
 
   const search = (event: { preventDefault: () => void }) => {
     event.preventDefault();
+    if (!requireLogin()) return;
     setFilter('q', draft.trim());
     document
       .getElementById('library')
@@ -572,6 +584,7 @@ export default function Home() {
   };
 
   const applyRecommendation = (recommendation: Recommendation) => {
+    if (!requireLogin()) return;
     setDraft('');
     setTitleDraft('');
     setAuthorDraft('');
@@ -603,6 +616,7 @@ export default function Home() {
   };
 
   const readAtRandom = async () => {
+    if (!requireLogin()) return;
     if (randomLoading) return;
     setRandomLoading(true);
     setRandomError('');
@@ -683,6 +697,7 @@ export default function Home() {
           <span>我的诗笺</span>
           <b>{favorites.length}</b>
         </a>
+        {user ? <button className="favorite-link" type="button" onClick={() => void logout()}>{user.display_name || user.username} · 退出</button> : <button className="favorite-link" type="button" onClick={() => startLogin()}>登录夜不洛</button>}
       </header>
 
       <section id="discover" className="hero-shell">
@@ -734,7 +749,7 @@ export default function Home() {
             <Link
               className="today-card"
               href={`/poems/${today.id}`}
-              onClick={clearReaderContext}
+              onClick={(event) => { if (requireLogin(event)) clearReaderContext(); }}
             >
               <span>今日一诗</span>
               <strong>《{today.title}》</strong>
@@ -940,6 +955,7 @@ export default function Home() {
                         className="row-main"
                         href={`/poems/${poem.id}`}
                         onClick={(event) => {
+                          if (!requireLogin(event)) return;
                           if (
                             event.metaKey ||
                             event.ctrlKey ||
@@ -982,9 +998,7 @@ export default function Home() {
                         <button
                           className={`row-favorite ${liked ? 'liked' : ''}`}
                           onClick={() =>
-                            setFavorites((current) =>
-                              updateFavorite(current, poem.id),
-                            )
+                            user ? setFavorites((current) => updateFavorite(current, poem.id)) : startLogin()
                           }
                           aria-label={`${liked ? '取消收藏' : '收藏'}${poem.title}`}
                         >
