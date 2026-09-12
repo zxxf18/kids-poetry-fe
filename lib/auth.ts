@@ -1,3 +1,5 @@
+import { endSSOSession } from './logout';
+
 export type AuthUser = { sub: string; email: string; username: string; display_name: string; role: string };
 
 export async function getCurrentUser(): Promise<AuthUser | null> {
@@ -7,7 +9,7 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
 }
 
 export function startLogin(returnTo = `${window.location.pathname}${window.location.search}${window.location.hash}`) {
-  window.location.href = `/auth/login?return_to=${encodeURIComponent(returnTo)}`;
+  window.location.assign(`/auth/login?return_to=${encodeURIComponent(returnTo)}`);
 }
 
-export async function logout() { await fetch('/api/v1/auth/logout', { method: 'POST', credentials: 'same-origin' }); window.location.reload(); }
+export async function logout() { await endSSOSession('/api/v1/auth/logout'); window.location.replace('/'); }

@@ -1692,3 +1692,22 @@ button {
     transition-duration: 0.01ms !important;
   }
 }
+:root { --user-border:#e8cdb5; --user-surface:#fffaf2; --user-ink:#7d4b32; }
+
+/* Bounded account controls: long names never stretch the header or dropdown. */
+.user-menu { position:relative; min-width:0; flex-shrink:0; }
+.user-trigger { display:inline-flex; align-items:center; justify-content:center; gap:7px; max-width:172px; min-height:40px; padding:8px 14px; border:1px solid var(--user-border); border-radius:999px; background:var(--user-surface); color:var(--user-ink); font-size:14px; font-weight:700; white-space:nowrap; cursor:pointer; }
+.user-trigger:hover { filter:brightness(.97); }
+.user-trigger:focus-visible,.user-panel a:focus-visible,.user-panel button:focus-visible { outline:3px solid var(--user-ink); outline-offset:3px; }
+.user-name { display:block; min-width:0; max-width:10ch; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.user-panel { position:absolute; top:calc(100% + 10px); right:0; z-index:200; width:260px; max-width:calc(100vw - 24px); padding:10px; border:1px solid var(--user-border); border-radius:18px; color:var(--user-ink); background:var(--user-surface); box-shadow:0 15px 45px #15233824; text-align:left; }
+.user-panel-heading { min-width:0; padding:8px 10px 12px; border-bottom:1px solid var(--user-border); margin-bottom:6px; }
+.user-panel-heading strong,.user-panel-heading span { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:14px; }
+.user-panel-heading span { margin-top:4px; font-size:12px; opacity:.7; }
+.user-panel a,.user-panel button { display:flex; align-items:center; justify-content:space-between; width:100%; min-height:44px; border:0; border-radius:10px; padding:10px; background:transparent; color:inherit; text-decoration:none; font:inherit; font-size:14px; font-weight:600; cursor:pointer; }
+.user-panel a:hover,.user-panel button:hover { background:#8196b014; }
+.user-panel button { color:#ad3245; }
+.user-profile-hint { margin:0 10px 10px; font-size:12px; opacity:.7; line-height:1.5; }
+.user-menu-error { margin:8px; color:#ad3245; font-size:12px; line-height:1.5; overflow-wrap:anywhere; }
+@media(max-width:760px) { .user-trigger { max-width:132px; min-height:40px; padding:8px 10px; font-size:13px; } .user-name { max-width:7ch; } }
+@media(max-width:420px) { .site-header { gap:8px; } .site-header .brand { gap:6px; font-size:16px; white-space:nowrap; } .site-header .brand-logo { width:32px; height:32px; } }

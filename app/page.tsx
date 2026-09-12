@@ -45,7 +45,8 @@ import {
   saveReaderContext,
 } from '@/lib/poetry-navigation';
 import { chooseFreshPoem } from '@/lib/poetry-random';
-import { getCurrentUser, logout, startLogin, type AuthUser } from '@/lib/auth';
+import { getCurrentUser, startLogin, type AuthUser } from '@/lib/auth';
+import { UserMenu } from './UserMenu';
 
 type SearchFilters = {
   q: string;
@@ -698,7 +699,7 @@ export default function Home() {
             <span>我的诗笺</span>
             <b>{favorites.length}</b>
           </a>
-          {user ? <button className="favorite-link" type="button" onClick={() => void logout()}>{user.display_name || user.username} · 退出</button> : <button className="favorite-link" type="button" onClick={() => startLogin()}>登录夜不洛</button>}
+          <UserMenu user={user} />
         </div>
       </header>
 
