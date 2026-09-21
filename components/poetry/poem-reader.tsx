@@ -36,7 +36,6 @@ import {
   saveReaderContext,
 } from '@/lib/poetry-navigation';
 import { chooseFreshPoem } from '@/lib/poetry-random';
-import { startLogin } from '@/lib/auth';
 
 export function PoemReader({ id }: { id: string }) {
   const router = useRouter();
@@ -85,7 +84,6 @@ export function PoemReader({ id }: { id: string }) {
         }),
       )
       .catch((reason: Error) => {
-        if (reason.message.includes('(401)')) { startLogin(); return; }
         if (reason.name !== 'AbortError') setError('这页诗笺暂时没有打开。');
       })
       .finally(() => setLoading(false));

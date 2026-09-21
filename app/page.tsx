@@ -577,7 +577,6 @@ export default function Home() {
 
   const search = (event: { preventDefault: () => void }) => {
     event.preventDefault();
-    if (!requireLogin()) return;
     setFilter('q', draft.trim());
     document
       .getElementById('library')
@@ -585,7 +584,6 @@ export default function Home() {
   };
 
   const applyRecommendation = (recommendation: Recommendation) => {
-    if (!requireLogin()) return;
     setDraft('');
     setTitleDraft('');
     setAuthorDraft('');
@@ -617,7 +615,6 @@ export default function Home() {
   };
 
   const readAtRandom = async () => {
-    if (!requireLogin()) return;
     if (randomLoading) return;
     setRandomLoading(true);
     setRandomError('');
