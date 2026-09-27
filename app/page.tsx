@@ -342,7 +342,6 @@ export default function Home() {
   const [hydrated, setHydrated] = useState(false);
   const [restoringList, setRestoringList] = useState(false);
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [authReady, setAuthReady] = useState(false);
   const requestSequence = useRef(0);
   const loadingRequest = useRef(false);
   const loadMoreSentinel = useRef<HTMLDivElement | null>(null);
@@ -350,13 +349,9 @@ export default function Home() {
   const restoreScrollY = useRef<number | null>(null);
   const restoreAnchor = useRef<{ id: string; offset: number } | null>(null);
 
-  useEffect(() => { void getCurrentUser().then(setUser).finally(() => setAuthReady(true)); }, []);
-  const requireLogin = (event?: { preventDefault: () => void }) => {
-    if (user) return true;
-    event?.preventDefault();
-    if (authReady) startLogin();
-    return false;
-  };
+  useEffect(() => {
+    void getCurrentUser().then(setUser).catch(() => setUser(null));
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -749,7 +744,7 @@ export default function Home() {
             <Link
               className="today-card"
               href={`/poems/${today.id}`}
-              onClick={(event) => { if (requireLogin(event)) clearReaderContext(); }}
+              onClick={() => clearReaderContext()}
             >
               <span>今日一诗</span>
               <strong>《{today.title}》</strong>
@@ -955,7 +950,6 @@ export default function Home() {
                         className="row-main"
                         href={`/poems/${poem.id}`}
                         onClick={(event) => {
-                          if (!requireLogin(event)) return;
                           if (
                             event.metaKey ||
                             event.ctrlKey ||
