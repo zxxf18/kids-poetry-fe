@@ -28,6 +28,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="zh-CN">
+      <head>
+        <script defer src="https://yebuluo.com.cn/stats/tracker.js" data-site-id="poetry" />
+      </head>
       <body>{children}</body>
     </html>
   );
